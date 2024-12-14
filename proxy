@@ -1,0 +1,80 @@
+import boto3
+import requests
+import time
+
+# AWS Configurations
+AWS_ACCESS_KEY = 'your_aws_access_key'
+AWS_SECRET_KEY = 'your_aws_secret_key'
+AWS_REGION = 'your_aws_region'  # e.g. 'us-west-1'
+INSTANCE_TYPE = 't2.micro'
+AMI_ID = 'ami-0e2c8caa4b6378d8c'  # Ganti dengan ID AMI Ubuntu atau yang sesuai
+KEY_NAME = 'ORA'
+
+# Lumina (Bright Data) API Credentials
+BRIGHTDATA_API_KEY = '63276583308fd7e08bd4b0ae96d73d8f16c7c290f38d30c349659652b768e51f'
+BRIGHTDATA_PROXY_GROUP = 'your_proxy_group'
+
+# Create EC2 Instance using boto3
+def create_ec2_instance():
+    ec2 = boto3.client(
+        'ec2',
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY,
+        region_name=AWS_REGION
+    )
+
+    response = ec2.run_instances(
+        ImageId=AMI_ID,
+        InstanceType=INSTANCE_TYPE,
+        MinCount=1,
+        MaxCount=1,
+        KeyName=KEY_NAME,
+        SecurityGroupIds=['sg-01504071d4ce0bc11'],  # Pastikan Anda sudah membuat Security Group
+    )
+    
+    instance_id = response['Instances'][0]['InstanceId']
+    print(f"EC2 Instance created with Instance ID: {instance_id}")
+    
+    return instance_id
+
+# Setup Proxy via Lumina (Bright Data)
+def create_lumina_proxy():
+    url = 'https://api.brightdata.com/proxy/create'
+    payload = {
+        'api_key': BRIGHTDATA_API_KEY,
+        'group': BRIGHTDATA_PROXY_GROUP,
+        'type': 'residential',
+        'zone': 'US',  # Pilih zona sesuai dengan kebutuhan
+    }
+    
+    response = requests.post(url, json=payload)
+    
+    if response.status_code == 200:
+        proxy_info = response.json()
+        print("Proxy successfully created:", proxy_info)
+        return proxy_info['proxy']
+    else:
+        print("Failed to create proxy:", response.text)
+        return None
+
+# Main function to run the setup
+def main():
+    print("Creating EC2 instance on AWS...")
+    instance_id = create_ec2_instance()
+    
+    print(f"Waiting for EC2 instance {instance_id} to start...")
+    time.sleep(60)  # Tunggu sebentar untuk instance siap
+    
+    print("Creating residential proxy via Lumina...")
+    proxy_info = create_lumina_proxy()
+    
+    if proxy_info:
+        print("Proxy IP:", proxy_info['ip'])
+        print("Proxy Port:", proxy_info['port'])
+        print("Proxy Username:", proxy_info['username'])
+        print("Proxy Password:", proxy_info['password'])
+    else:
+        print("Proxy creation failed.")
+
+if __name__ == '__main__':
+    main()
